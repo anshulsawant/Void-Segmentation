@@ -1,5 +1,8 @@
-import cv2
+import sysconfig
 
+sys.path.append('/usr/local/google/home/asawant/.local/lib/python3.9/site-packages/')
+
+import cv2
 import random
 from glob import glob
 import numpy as np
@@ -7,10 +10,12 @@ import os
 from skimage import measure
 import tensorflow as tf
 
+
+ROOT = '/usr/local/google/home/asawant/Void-Segmentation'
 ## TODO(anshul): All of this file uses numpy not, tf. This will use CPU. Don't know
 ## if that's good or bad but can use tf functions instead. That will probably be more
 ## efficient.
-def load_image_paths(dir = '/content/drive/MyDrive/Segmentation/dataset/train'):
+def load_image_paths(dir = ROOT):
   dirs = (os.path.join(dir, 'images/*.png'),
           os.path.join(dir, 'masks/*.png'),
           os.path.join(dir, 'bboxes/*.tf'),
@@ -89,7 +94,7 @@ def get_bboxes(mask):
 
 
 def split_and_write_images(
-    in_dir='/content/drive/MyDrive/Segmentation/Images/raw',
+    in_dir=os.path.join(ROOT, 'Images', 'raw'),
     out_dir='/content/drive/MyDrive/Segmentation/dataset'):
   dirs = (os.path.join(in_dir, 'images/*.tif'), os.path.join(in_dir, 'masks/*.tif'))
   image_paths, mask_paths = sorted(glob(dirs[0])), sorted(glob(dirs[1]))
@@ -155,7 +160,7 @@ def rotate_images_in_dir(
     cv2.imwrite(n, i[1].numpy())
 
 def compute_and_write_bboxes(
-    in_path = '/content/drive/MyDrive/Segmentation/dataset/train',
+    in_path = os.path.join(ROOT, 'dataset', 'train'),
     masks_dir = 'masks', bboxes_dir = 'bboxes'):
   in_paths = glob(os.path.join(in_path, masks_dir) + '/*.png')
   names = [os.path.splitext(os.path.basename(p))[0] for p in in_paths]
@@ -179,25 +184,26 @@ def recreate_dataset():
   compute_and_write_bboxes(in_path = '/content/drive/MyDrive/Segmentation/dataset/holdout')
 
 def verify_dataset():
-  dataset_path = '/content/drive/MyDrive/Segmentation/dataset'
+  dataset_path = os.path.join(ROOT,'dataset')
+  print('Verifying: ' + dataset_path)
   def name(path):
     return os.path.splitext(os.path.basename(path))[0]
 
-  train_images = sorted(glob(os.path.join(dataset_path, 'train', 'images', '/*.png')))
-  train_masks = sorted(glob(os.path.join(dataset_path, 'train', 'masks', '/*.png')))
-  train_bboxes = sorted(glob(os.path.join(dataset_path, 'train', 'bboxes', '/*.txt')))
-  test_images = sorted(glob(os.path.join(dataset_path, 'test', 'images', '/*.png')))
-  test_masks = sorted(glob(os.path.join(dataset_path, 'test', 'masks', '/*.png')))
-  test_bboxes = sorted(glob(os.path.join(dataset_path, 'test', 'bboxes', '/*.txt')))
-  holdout_images = sorted(glob(os.path.join(dataset_path, 'holdout', 'images', '/*.png')))
-  holdout_masks = sorted(glob(os.path.join(dataset_path, 'holdout', 'masks', '/*.png')))
-  holdout_bboxes = sorted(glob(os.path.join(dataset_path, 'holdout', 'bboxes', '/*.txt')))
+  train_images = sorted(glob(os.path.join(dataset_path, 'train', 'images/*.png')))
+  train_masks = sorted(glob(os.path.join(dataset_path, 'train', 'masks/*.png')))
+  train_bboxes = sorted(glob(os.path.join(dataset_path, 'train', 'bboxes/*.txt')))
+  test_images = sorted(glob(os.path.join(dataset_path, 'test', 'images/*.png')))
+  test_masks = sorted(glob(os.path.join(dataset_path, 'test', 'masks/*.png')))
+  test_bboxes = sorted(glob(os.path.join(dataset_path, 'test', 'bboxes/*.txt')))
+  holdout_images = sorted(glob(os.path.join(dataset_path, 'holdout', 'images/*.png')))
+  holdout_masks = sorted(glob(os.path.join(dataset_path, 'holdout', 'masks/*.png')))
+  holdout_bboxes = sorted(glob(os.path.join(dataset_path, 'holdout', 'bboxes/*.txt')))
 
-  print(len(train_images))
+  print(f'Number of training images: {len(train_images)}.')
+  print(f'Number of test images: {len(test_images)}.')
+  print(f'Number of holdout images: {len(holdout_images)}.')
   assert(len(train_images) == 1024)
-  print(len(test_images))
   assert(len(test_images) == 32)
-  print(len(test_images))
   assert(len(holdout_images) == 32)
 
   def names(paths):
@@ -209,3 +215,4 @@ def verify_dataset():
   assert(names(test_masks) == names(test_bboxes))
   assert(names(holdout_images) == names(holdout_masks))
   assert(names(holdout_masks) == names(holdout_bboxes))
+  print('Verified: ' + dataset_path)
