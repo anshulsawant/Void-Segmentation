@@ -3,6 +3,7 @@
 import images
 import tensorflow as tf
 import numpy as np
+import os
 
 def _load_data(image, mask):
   def f(x, y):
