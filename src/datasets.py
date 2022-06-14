@@ -1,3 +1,5 @@
+## TF datasets to be fed into ML (Keras) models.
+
 import images
 import tensorflow as tf
 import numpy as np
@@ -33,4 +35,3 @@ def create_test_dataset(dir='/content/drive/MyDrive/Segmentation/Images/split16'
 
 def create_rpn_dataset(dir = '/content/drive/MyDrive/Segmentation/Images/split16'):
   dataset = create_dataset(dir = dir, batch=1)
-
