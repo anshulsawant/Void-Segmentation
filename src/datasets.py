@@ -27,10 +27,3 @@ def create_test_dataset(dir = os.path.join(images.ROOT, 'dataset'), batch=8):
   image_paths, masks, _, _ = images.load_image_paths(dir=dir, segment = 'test')
   print(f'Loading {len(image_paths)} images for testing.')
   return tf.data.Dataset.from_tensor_slices((image_paths, masks)).map(_load_data).batch(batch)
-
-
-i = 0
-for x in create_dataset()[0]:
-  i+=1
-print(i)
-i=0
