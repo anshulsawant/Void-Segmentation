@@ -7,10 +7,10 @@ import os
 
 def _load_data(image, mask):
   def f(x, y):
-    return (images.load_image(x.decode()), images.load_mask(y.decode()))
+    return (images.load_image(x.decode()), tf.reshape(images.load_mask(y.decode()), (-1,1)))
   img, msk = tf.numpy_function(f, [image, mask], [tf.float32, tf.float32])
   img.set_shape([512, 512, 1])
-  msk.set_shape([512, 512, 1])
+  msk.set_shape([512*512, 1])
   return (img, msk)
 
 def create_dataset(dir=os.path.join(images.ROOT, 'dataset'), batch=8):
@@ -27,3 +27,10 @@ def create_test_dataset(dir = os.path.join(images.ROOT, 'dataset'), batch=8):
   image_paths, masks, _, _ = images.load_image_paths(dir=dir, segment = 'test')
   print(f'Loading {len(image_paths)} images for testing.')
   return tf.data.Dataset.from_tensor_slices((image_paths, masks)).map(_load_data).batch(batch)
+
+
+i = 0
+for x in create_dataset()[0]:
+  i+=1
+print(i)
+i=0
