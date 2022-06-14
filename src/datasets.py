@@ -7,7 +7,7 @@ import os
 
 def _load_data(image, mask):
   def f(x, y):
-    return (images.load_image(x.decode()), tf.reshape(images.load_mask(y.decode()), (-1,1)))
+    return (images.load_image(x.decode())/255., tf.reshape(images.load_mask(y.decode()), (-1,1))/255.)
   img, msk = tf.numpy_function(f, [image, mask], [tf.float32, tf.float32])
   img.set_shape([512, 512, 1])
   msk.set_shape([512*512, 1])
