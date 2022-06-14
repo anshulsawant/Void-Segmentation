@@ -1,6 +1,9 @@
-import sysconfig
+### Methods for preprocessing and prepping data for a tf pipeline.
 
-sys.path.append('/usr/local/google/home/asawant/.local/lib/python3.9/site-packages/')
+import platform
+if platform.node() == 'sawant.svl.corp.google.com':
+  import sys
+  sys.path.append('/usr/local/google/home/asawant/.local/lib/python3.9/site-packages/')
 
 import cv2
 import random
@@ -11,11 +14,8 @@ from skimage import measure
 import tensorflow as tf
 
 
+ROOT = '/usr/local/google/home/asawant/Void-Segmentation' if platform.node() == 'sawant.svl.corp.google.com' else '/content/Void-Segmentation'
 
-ROOT = '/usr/local/google/home/asawant/Void-Segmentation'
-## TODO(anshul): All of this file uses numpy not, tf. This will use CPU. Don't know
-## if that's good or bad but can use tf functions instead. That will probably be more
-## efficient.
 def load_image_paths(dir = ROOT):
   dirs = (os.path.join(dir, 'images/*.png'),
           os.path.join(dir, 'masks/*.png'),
