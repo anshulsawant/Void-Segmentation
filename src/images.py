@@ -16,12 +16,12 @@ import tensorflow as tf
 
 ROOT = '/usr/local/google/home/asawant/Void-Segmentation' if platform.node() == 'sawant.svl.corp.google.com' else '/content/Void-Segmentation'
 
-def load_image_paths(dir = ROOT, segment='train'):
-  print(f'Loading images from {os.path.join(dir, segment).')
-  dirs = (os.path.join(dir, 'dataset', segment, 'images/*.png'),
-          os.path.join(dir, 'dataset', segment, 'masks/*.png'),
-          os.path.join(dir, 'dataset', segment, 'bboxes/*.tf'),
-          os.path.join(dir, 'dataset', segment, 'bboxes/*.txt'))
+def load_image_paths(dir = os.path.join(ROOT, 'dataset'), segment='train'):
+  print(f'Loading images from {os.path.join(dir, segment)}.')
+  dirs = (os.path.join(dir, segment, 'images/*.png'),
+          os.path.join(dir, segment, 'masks/*.png'),
+          os.path.join(dir, segment, 'bboxes/*.tf'),
+          os.path.join(dir, segment, 'bboxes/*.txt'))
   return sorted(glob(dirs[0])), sorted(glob(dirs[1])), sorted(glob(dirs[2])), sorted(glob(dirs[3]))
 
 ## Load an image from the raw data
