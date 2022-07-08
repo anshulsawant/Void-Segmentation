@@ -10,7 +10,7 @@ import os
 from skimage import measure
 import tensorflow as tf
 from scipy import spatial
-
+import json
 
 ROOT = ('/usr/local/google/home/asawant/Void-Segmentation'
         if platform.node().endswith('corp.google.com') or platform.node().endswith('googlers.com')
@@ -298,3 +298,38 @@ def ellipse_mask(cx, cy, rx, ry, theta):
   d2 = np.square((xs/ry)*np.sin(theta) - (ys/ry)*np.cos(theta))
 
   return d1 + d2 - 1 <= 0
+
+def region_to_mask(region_json):
+  attributes = region_json['shape_attributes']
+  if attributes['name'] == 'ellipse':
+    cx = attributes['cx']
+    cy = attributes['cy']
+    rx = attributes['rx']
+    ry = attributes['ry']
+    theta = attributes['theta']
+    ## Masks take up lot of memory. Do the actual computation right before saving them
+    return lambda: ellipse_mask(cx, cy, rx, ry, theta)
+  else:
+    xs = np.array(attributes['all_points_x'])
+    ys = np.array(attributes['all_points_y'])
+    ## Masks take up lot of memory. Do the actual computation right before saving them
+    return lambda: polyline_mask(xs, ys)
+
+def regions_to_masks(image_metadata):
+  regions = image_metadata['regions']
+  filename = image_metadata['filename']
+  return filename, [region_to_mask(r) for r in regions]
+
+def flatten_masks(mask_computations):
+  x = mask_computations[0]()
+  for c in mask_computations[1:len(mask_computations)]:
+    x = np.logical_or(x, c())
+  return x
+
+def load_masks_json(dir = ROOT, fn = '0636_masks.json'):
+  image_data = list(json.load(open(os.path.join(dir, fn)))[
+      '_via_img_metadata'].values())
+  return [regions_to_masks(i) for i in image_data]
+
+def compute_flattened_masks(image_mask_computations):
+  return [(i, flatten_masks(computations)) for i, computations in image_mask_computations]
