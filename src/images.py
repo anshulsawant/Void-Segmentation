@@ -1,10 +1,7 @@
 ### Methods for preprocessing and prepping data for a tf pipeline.
 
 import platform
-if platform.node() == 'sawant.svl.corp.google.com':
-  import sys
-  sys.path.append('/usr/local/google/home/asawant/.local/lib/python3.9/site-packages/')
-
+import sys
 import cv2
 import random
 from glob import glob
@@ -12,9 +9,12 @@ import numpy as np
 import os
 from skimage import measure
 import tensorflow as tf
+from scipy import spatial
 
 
-ROOT = '/usr/local/google/home/asawant/Void-Segmentation' if platform.node() == 'sawant.svl.corp.google.com' else '/content/Void-Segmentation'
+ROOT = ('/usr/local/google/home/asawant/Void-Segmentation'
+        if platform.node().endswith('corp.google.com') or platform.node().endswith('googlers.com')
+        else '/content/Void-Segmentation')
 
 def load_image_paths(dir = os.path.join(ROOT, 'dataset'), segment='train'):
   print(f'Loading images from {os.path.join(dir, segment)}.')
@@ -281,3 +281,20 @@ def clear_dataset(dir = os.path.join(ROOT, 'dataset')):
   delete(holdout_images)
   delete(holdout_masks)
   delete(holdout_bboxes)
+
+def polyline_mask(xs, ys):
+  ps = np.dstack((xs, ys))[0]
+  vertices = ps[spatial.ConvexHull(ps).vertices]
+  image = np.zeros((512, 512))
+  x = cv2.fillPoly(image, pts = [ps], color = 1)
+  return x > 0
+
+def ellipse_mask(cx, cy, rx, ry, theta):
+  xs, ys = np.meshgrid(range(512), range(512))
+  xs = xs - cx
+  ys = ys - cy
+
+  d1 = np.square((xs/rx)*np.cos(theta) + (ys/rx)*np.sin(theta))
+  d2 = np.square((xs/ry)*np.sin(theta) - (ys/ry)*np.cos(theta))
+
+  return d1 + d2 - 1 <= 0

@@ -1,4 +1,7 @@
+## To understand anchors see Section 4.1
+## of https://arxiv.org/pdf/1612.03144.pdf
 import tensorflow as tf
+from tensorflow import keras
 
 def tile(vec, n_columns):
   return tf.tile(tf.reshape(vec, (vec.shape[0], 1)), [1, n_columns])
@@ -74,7 +77,7 @@ def perturbations(anchors, boxes):
   tw = tf.math.log(b[:,3]/a[:, 3])
   return tf.stack([ty, tx, th, tw], axis = 1)
 
-def anchor_gt_assignment(anchors, gt_boxes, N):
+def anchor_gt_assignment(anchors, gt_boxes, N=100):
   '''
   anchors: of shape [num_anchors, 4]
   gt_boxes: of shape [num_gt_boxes, 4]
@@ -120,11 +123,42 @@ def anchor_gt_assignment(anchors, gt_boxes, N):
     0:num_negative_samples
   ], [num_negative_samples]), dtype=tf.int32)
   ## Best GT boxes for a given anchor
-  best_gt_box_indices = tf.cast(tf.argmax(tf.gather(ious, positive_anchor_indices, axis=0), axis=1), dtype=tf.int32)
+  best_gt_box_indices = tf.cast(tf.argmax(tf.gather(ious, positive_anchor_indices, axis=0), axis=1),
+                                dtype=tf.int32)
   best_gt_boxes = tf.gather(gt_boxes, best_gt_box_indices)
   positive_anchor_coords = tf.gather(anchors, positive_anchor_indices)
   deltas = perturbations(positive_anchor_coords, best_gt_boxes)
-  return tf.stack([positive_anchor_indices, best_gt_box_indices], axis=1), deltas, negative_anchor_indices
+  return (tf.stack([positive_anchor_indices, best_gt_box_indices], axis=1),
+          deltas,
+          negative_anchor_indices)
+
+class RpnLoss():
+    def __init__(anchors, gt_boxes):
+        self.anchors = anchors
+        self.gt_boxes = gt_boxes
+        x = anchor_gt_assignment(anchors, gt_boxes)
+        self.deltas = x[1]
+        self.positive_anchor_indices = x[0][:,0]
+        self.negative_anchor_indices = x[2]
+
+    def loss(self, rpn_output):
+        rpn_probs = rpn_output[0]
+        rpn_deltas = rpn_output[1]
+        sampled_rpn_probs = tf.gather(
+            rpn_probs,
+            tf.concat(self.positive_anchor_indices, self.negative_anchor_indices), axis = 0)
+        y_true = tf.concat(
+            [tf.ones((positive_anchor_indices.shape[0], 1)),
+            tf.zeros((negative_anchor_indices.shape[0], 1))],
+            axis = 0)
+        sampled_rpn_deltas = tf.gather(
+            rpn_deltas,
+            positive_anchor_indices)
+        classification_loss = keras.losses.SparseCategoricalCrossentropy()(
+            y_true, sampled_rpn_probs)
+        regression_loss = keras.losses.Huber(deltas, sampled_rpn_deltas)
+        return classification_loss + regression_loss
+
 
 def anchor_centers(shape, stride):
   '''
@@ -148,8 +182,16 @@ def anchors(shape, sizes, ratios, stride):
     w = tf.ones([xs.shape[0]])*r*size
     h = tf.ones([ys.shape[0]])*size/r
     return corner(tf.stack([ys, xs, h, w], axis=1))
+    return corner(tf.stack([ys, xs, h, w], axis=1))
   ## Anchors of given size
   return tf.concat([f(size, ratio) for size in sizes for ratio in ratios], axis=0)
+
+def anchor_pyramid(shape = (512,512),
+                   sizes = [16, 32, 64, 128, 256],
+                   ratios = [0.5, 1.0, 2.0],
+                   strides = [4, 8, 16, 32, 64]):
+    return tf.concat([anchors(shape, sizes, ratios, stride) for stride in strides],
+                     axis = 0)
 
 ## Clip anchors at image boundaries
 def clip_anchors(anchors, min=[0,0], max=[512, 512]):
