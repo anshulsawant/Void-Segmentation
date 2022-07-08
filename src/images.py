@@ -324,7 +324,7 @@ def flatten_masks(mask_computations):
   x = mask_computations[0]()
   for c in mask_computations[1:len(mask_computations)]:
     x = np.logical_or(x, c())
-  return x
+  return x*255
 
 def load_masks_json(dir = ROOT, fn = '0636_masks.json'):
   image_data = list(json.load(open(os.path.join(dir, fn)))[
@@ -333,3 +333,16 @@ def load_masks_json(dir = ROOT, fn = '0636_masks.json'):
 
 def compute_flattened_masks(image_mask_computations):
   return [(i, flatten_masks(computations)) for i, computations in image_mask_computations]
+
+def save_mask(image_mask, outdir = os.path.join(ROOT, 'raw_data', 'masks')):
+  image, mask = image_mask
+  p = os.path.join(outdir, image)
+  print(f'Writing {p}.')
+  cv2.imwrite(os.path.join(outdir, image), mask)
+
+def load_and_write_masks(
+    dir = ROOT,
+    fn='0636_masks.json',
+    outdir = os.path.join(ROOT, 'raw_data', 'masks')):
+  for image_mask in compute_flattened_masks(load_masks_json(dir = dir, fn = fn)):
+    save_mask(image_mask, outdir = outdir)
