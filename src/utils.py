@@ -82,10 +82,9 @@ def anchor_gt_assignment(anchors, gt_boxes, N=100):
   anchors: of shape [num_anchors, 4]
   gt_boxes: of shape [num_gt_boxes, 4]
   outputs:
-  positive_anchors: [n <= N, (anchor_index, matched_gt_box_index)]
-  deltas: [n <= N, perturbations]
-  negative_anchors: [n <= m <= N, anchor_index]
-  perturbations, as defined in Function "perturbations", required to match a
+  Nx6 matrix of anchor_indices, anchor_labels (1, -1 or 0), and for
+  positive anchors, deltas.
+  deltas, as defined in Function "perturbations", required to match a
   positive anchor to corresponding gt box. Neutral anchors aren't used for
   training. Samples are used to train RPN. Sampling maintains balance between
   negative and positive anchors.
@@ -128,35 +127,52 @@ def anchor_gt_assignment(anchors, gt_boxes, N=100):
   best_gt_boxes = tf.gather(gt_boxes, best_gt_box_indices)
   positive_anchor_coords = tf.gather(anchors, positive_anchor_indices)
   deltas = perturbations(positive_anchor_coords, best_gt_boxes)
-  return (tf.stack([positive_anchor_indices, best_gt_box_indices], axis=1),
-          deltas,
-          negative_anchor_indices)
+  padding = tf.zeros(
+      N - positive_anchor_indices.shape[0] - negative_anchor_indices.shape[0],
+      6)
+  positive_anchor_slice = tf.stack(
+      [
+          positive_anchor_indices,
+          tf.ones((positive_anchor_indices.shape[0])),
+          deltas],
+      axis = 1)
+  negative_anchor_slice = tf.stack(
+      [
+          negative_anchor_indices,
+          tf.ones((negative_anchor_indices.shape[0]))*-1.0,
+          tf.zeros((negative_anchor_indices.shape[0], 4))
+      ],
+      axis = 1)
+  return tf.concat([positive_anchor_slice, negative_anchor_slice, padding], axis=0)
 
 class RpnLoss():
-    def __init__(anchors, gt_boxes):
+    def __init__(self, anchors):
         self.anchors = anchors
-        self.gt_boxes = gt_boxes
-        x = anchor_gt_assignment(anchors, gt_boxes)
-        self.deltas = x[1]
-        self.positive_anchor_indices = x[0][:,0]
-        self.negative_anchor_indices = x[2]
 
-    def loss(self, rpn_output):
+    def loss(self, rpn_labels, rpn_output):
         rpn_probs = rpn_output[0]
         rpn_deltas = rpn_output[1]
+        anchor_labels = rpn_labels[:,1]
+        positive_anchor_indices = tf.cast(
+            tf.gather(anchor_labels, tf.where(tf.equal(anchor_labels, 1.0))), tf.int32)
+        print(positive_anchor_indices)
+        negative_anchor_indices = tf.cast(
+            tf.gather(anchor_labels, tf.where(tf.equal(anchor_labels, -1.0))), tf.int32)
+        print(negative_anchor_indices)
+        deltas = tf.gather(rpn_labels[:, 2:6], positive_anchor_indices)
         sampled_rpn_probs = tf.gather(
             rpn_probs,
-            tf.concat(self.positive_anchor_indices, self.negative_anchor_indices), axis = 0)
+            tf.concat(positive_anchor_indices, negative_anchor_indices), axis = 0)
         y_true = tf.concat(
-            [tf.ones((positive_anchor_indices.shape[0], 1)),
-            tf.zeros((negative_anchor_indices.shape[0], 1))],
+            [tf.ones((tf.shape(positive_anchor_indices)[0], 1)),
+            tf.zeros((tf.shape(negative_anchor_indices)[0], 1))],
             axis = 0)
         sampled_rpn_deltas = tf.gather(
             rpn_deltas,
             positive_anchor_indices)
         classification_loss = keras.losses.SparseCategoricalCrossentropy()(
             y_true, sampled_rpn_probs)
-        regression_loss = keras.losses.Huber(deltas, sampled_rpn_deltas)
+        regression_loss = keras.losses.Huber()(deltas, sampled_rpn_deltas)
         return classification_loss + regression_loss
 
 

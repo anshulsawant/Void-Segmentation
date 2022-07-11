@@ -15,20 +15,21 @@ def _load_data(image, mask):
   msk.set_shape([512*512, 1])
   return (img, msk)
 
-def _load_mask_rcnn_data(image, mask, bboxes, anchors):
+anchors = utils.anchor_pyramid()
+
+def _load_mask_rcnn_data(image, mask, bboxes):
   def f(x, y, z):
-    positive_anchors, deltas, negative_anchors = utils.anchor_gt_assignment(anchors, bboxes)
+    rpn_labels = utils.anchor_gt_assignment(anchors, bboxes)
     return (
         images.load_image(x.decode())/255.,
-        tf.reshape(images.load_mask(y.decode()), (-1,1))/255.,
-        positive_anchors,
-        deltas,
-        negative_anchors)
-  img, msk, positive_anchors, deltas, negative_anchors = \
-  tf.numpy_function(f, [image, mask, bboxes], [tf.float32, tf.float32, tf.float32])
+        rpn_labels)
+  img, rpn_labels = \
+  tf.numpy_function(
+      f,
+      [image, mask, bboxes],
+      [tf.float32, tf.float32])
   img.set_shape([512, 512, 1])
-  msk.set_shape([512*512, 1])
-  return (img, msk, positive_anchors, deltas, negative_anchors)
+  return (img, rpn_labels)
 
 def create_dataset(dir=os.path.join(images.ROOT, 'dataset'), batch=8):
   image_paths, masks, _, _ = images.load_image_paths(dir=dir, segment = 'train')
@@ -49,7 +50,6 @@ def create_test_dataset(dir = os.path.join(images.ROOT, 'dataset'), batch=8):
 def create_mask_rcnn_dataset(dir=os.path.join(images.ROOT, 'dataset'), batch=1):
   image_paths, masks, bboxes, _ = images.load_image_paths(dir=dir, segment = 'train')
   train_size = len(image_paths)*4//5
-  anchors = utils.anchor_pyramid()
   print(f'Creating dataset with {len(image_paths)} images.')
   print(f'Using {train_size} images for training.')
   ds = (tf.data.Dataset

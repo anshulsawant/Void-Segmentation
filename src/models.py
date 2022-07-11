@@ -133,5 +133,7 @@ def train_rpn(epochs = 10, lr = 0.0001):
     fpn = FeaturePyramid()
     rpn = region_proposal_model(backbone, fpn)
     training_data, validation_data = datasets.create_mask_rcnn_dataset()
-    rpn.compile(keras.optimizers.Adam(learning_rate = lr), loss = utils.RpnLoss().loss)
+    rpn.compile(
+        keras.optimizers.Adam(learning_rate = lr),
+        loss = utils.RpnLoss(datasets.anchors).loss)
     rpn.fit(training_data, validation_data = validation_data, epochs=epochs)
