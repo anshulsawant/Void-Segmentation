@@ -1,27 +1,27 @@
 ### Methods for preprocessing and prepping data for a tf pipeline.
 
-import platform
-import sys
-import cv2
-import random
 from glob import glob
+from scipy import spatial
+from skimage import measure
+import cv2
+import json
 import numpy as np
 import os
-from skimage import measure
+import platform
+import random
 import tensorflow as tf
-from scipy import spatial
-import json
 
 ROOT = ('/usr/local/google/home/asawant/Void-Segmentation'
-        if platform.node().endswith('corp.google.com') or platform.node().endswith('googlers.com')
+        if platform.node().endswith(
+            'corp.google.com') or platform.node().endswith('googlers.com')
         else '/content/Void-Segmentation')
 
-def load_image_paths(dir = os.path.join(ROOT, 'dataset'), segment='train'):
-  print(f'Loading images from {os.path.join(dir, segment)}.')
-  dirs = (os.path.join(dir, segment, 'images/*.png'),
-          os.path.join(dir, segment, 'masks/*.png'),
-          os.path.join(dir, segment, 'bboxes/*.tf'),
-          os.path.join(dir, segment, 'bboxes/*.txt'))
+def load_image_paths(base=os.path.join(ROOT, 'dataset'), segment='train'):
+  print(f'Loading images from {os.path.join(base, segment)}.')
+  dirs = (os.path.join(base, segment, 'images/*.png'),
+          os.path.join(base, segment, 'masks/*.png'),
+          os.path.join(base, segment, 'bboxes/*.tf'),
+          os.path.join(base, segment, 'bboxes/*.txt'))
   return sorted(glob(dirs[0])), sorted(glob(dirs[1])), sorted(glob(dirs[2])), sorted(glob(dirs[3]))
 
 ## Load an image from the raw data
@@ -284,9 +284,8 @@ def clear_dataset(dir = os.path.join(ROOT, 'dataset')):
 
 def polyline_mask(xs, ys):
   ps = np.dstack((xs, ys))[0]
-  vertices = ps[spatial.ConvexHull(ps).vertices]
   image = np.zeros((512, 512))
-  x = cv2.fillPoly(image, pts = [ps], color = 1)
+  x = cv2.fillPoly(image, pts=[ps], color=1)
   return x > 0
 
 def ellipse_mask(cx, cy, rx, ry, theta):
@@ -299,6 +298,19 @@ def ellipse_mask(cx, cy, rx, ry, theta):
 
   return d1 + d2 - 1 <= 0
 
+def circle_mask(cx, cy, r):
+  xs, ys = np.meshgrid(range(512), range(512))
+  xs = xs - cx
+  ys = ys - cy
+
+  d1 = np.square(ys/r)
+  d2 = np.square(xs/r)
+
+  return d1 + d2 - 1 <= 0
+
+def trivial_mask():
+  return np.zeros((512, 512))!=0
+
 def region_to_mask(region_json):
   attributes = region_json['shape_attributes']
   if attributes['name'] == 'ellipse':
@@ -309,30 +321,42 @@ def region_to_mask(region_json):
     theta = attributes['theta']
     ## Masks take up lot of memory. Do the actual computation right before saving them
     return lambda: ellipse_mask(cx, cy, rx, ry, theta)
-  else:
+  elif attributes['name'] == 'polygon':
     xs = np.array(attributes['all_points_x'])
     ys = np.array(attributes['all_points_y'])
     ## Masks take up lot of memory. Do the actual computation right before saving them
     return lambda: polyline_mask(xs, ys)
+  elif attributes['name'] == 'circle':
+    xs = np.array(attributes['cx'])
+    ys = np.array(attributes['cy'])
+    r = np.array(attributes['r'])
+    ## Masks take up lot of memory. Do the actual computation right before saving them
+    return lambda: circle_mask(xs, ys, r)
+  else:
+    raise RuntimeError(f'Unknown shape: {attributes}.')
 
 def regions_to_masks(image_metadata):
   regions = image_metadata['regions']
   filename = image_metadata['filename']
+  if len(regions) == 0:
+    print(f'Warning: no masks provided for {filename}.')
   return filename, [region_to_mask(r) for r in regions]
 
 def flatten_masks(mask_computations):
-  x = mask_computations[0]()
-  for c in mask_computations[1:len(mask_computations)]:
+  x = trivial_mask()
+  for c in mask_computations:
     x = np.logical_or(x, c())
   return x*255
 
-def load_masks_json(dir = ROOT, fn = '0636_masks.json'):
-  image_data = list(json.load(open(os.path.join(dir, fn)))[
+def load_masks_json(base_dir = ROOT, fn = '0636_masks.json'):
+  image_data = list(json.load(open(os.path.join(base_dir, fn)))[
       '_via_img_metadata'].values())
   return [regions_to_masks(i) for i in image_data]
 
 def compute_flattened_masks(image_mask_computations):
-  return [(i, flatten_masks(computations)) for i, computations in image_mask_computations]
+  return [(i, flatten_masks(computations))
+          for i, computations in image_mask_computations
+          if len(computations) > 0]
 
 def save_mask(image_mask, outdir = os.path.join(ROOT, 'raw_data', 'masks')):
   image, mask = image_mask
@@ -341,8 +365,15 @@ def save_mask(image_mask, outdir = os.path.join(ROOT, 'raw_data', 'masks')):
   cv2.imwrite(os.path.join(outdir, image), mask)
 
 def load_and_write_masks(
-    dir = ROOT,
+    base_dir = ROOT,
     fn='0636_masks.json',
     outdir = os.path.join(ROOT, 'raw_data', 'masks')):
-  for image_mask in compute_flattened_masks(load_masks_json(dir = dir, fn = fn)):
+  for image_mask in compute_flattened_masks(load_masks_json(base_dir = base_dir, fn = fn)):
     save_mask(image_mask, outdir = outdir)
+
+def load_and_write_masks_in_dir(
+    base_dir = os.path.join(ROOT, 'raw_data', 'json_masks')):
+  files = glob(os.path.join(base_dir, '*.json'))
+  for f in files:
+    print(f'Loading file: {f}.')
+    load_and_write_masks(base_dir=base_dir, fn=f, outdir=base_dir)
