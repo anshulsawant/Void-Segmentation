@@ -388,3 +388,12 @@ def load_and_write_masks_in_dir(
   for f in files:
     print(f'Loading file: {f}.')
     load_and_write_masks(base_dir=base_dir, fn=f, outdir=base_dir)
+
+def pretty_print_json(base_dir = os.path.join(ROOT, 'raw_data', 'json_masks')):
+  files = glob(os.path.join(base_dir, '*.json'))
+  pretty_dir = os.path.join(base_dir, 'pretty')
+  for f in files:
+    n = os.path.basename(f)
+    s = json.load(open(f))
+    with open(os.path.join(pretty_dir, n), 'w') as outfile:
+      outfile.write(json.dumps(s, indent=2, sort_keys=True))
