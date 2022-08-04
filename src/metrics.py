@@ -52,7 +52,7 @@ def feature_metrics(counts):
     tp = n[0]
     fp = n[1]
     fn = n[2]
-    precision = tp/(tn + fn)
+    precision = tp/(tp + fn)
     recall = tp/(tp + fp)
     intersection = tp
     union = tp + fn + fn
