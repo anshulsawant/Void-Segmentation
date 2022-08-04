@@ -64,7 +64,7 @@ def feature_metrics(masks, masks_pred, threshold, size = 512):
   N = masks.shape[0]
   counts = []
   for i in range(N):
-    mask_pred = np.reshape(masks_pred[i], (size, size))
+    mask_pred = np.reshape(masks_pred[i] > 0.5, (size, size))
     mask = np.reshape(masks[i], (size, size))
     counts = counts + [feature_counts(mask, mask_pred, threshold = threshold)]
   counts = np.stack(counts, axis=0)
