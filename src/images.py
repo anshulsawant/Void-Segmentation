@@ -95,19 +95,18 @@ def split_and_write_images(in_dir = os.path.join(ROOT, 'raw_data'),
     cv2.imwrite(p, img.numpy())
 
 
-
-
 def copy_json_masks_and_split_images(
     in_dir = os.path.join(ROOT, 'raw_data'),
     out_dir = os.path.join(ROOT, 'dataset'),
     seed = 42):
   mask_paths = sorted(glob(os.path.join(in_dir, 'json_masks', '*.png')))
-  image_paths = [os.path.join(in_dir, 'images', 'split', n) for n in mask_names]
-  print(f'Reading {len(mask_names)} mask images.')
-  assert(len(mask_names) > 0)
+  image_paths = [os.path.join(in_dir, 'images', 'split', n) for n in mask_paths]
+  print(f'Reading {len(mask_paths)} mask images.')
+  assert(len(mask_paths) > 0)
   print(f'Name of a mask file: {mask_paths[0]}.')
   print(f'Name of an image file: {image_paths[0]}.')
-  shuffled = random.Random(seed).shuffle(range(len(mask_paths)))
+  shuffled = list(range(len(mask_paths)))
+  random.Random(seed).shuffle(shuffled)
   sz = len(mask_paths)
   train_segment = shuffled[0: ((2*sz)//3)]
   test_segment = shuffled[((2*sz)//3):((5*sz)//6)]
@@ -189,9 +188,9 @@ def compute_and_write_bboxes(
 
 ## For generating dataset from the raw images
 def recreate_dataset():
-  split_and_write_images()
+  clear_dataset()
   load_and_write_masks_in_dir()
-  copy_json_masks()
+  copy_json_masks_and_split_images()
   rotate_images_in_dir(os.path.join(ROOT, 'dataset', 'train', 'images'))
   rotate_images_in_dir(os.path.join(ROOT, 'dataset', 'train', 'masks'), mask = True)
   compute_and_write_bboxes(in_path = os.path.join(ROOT, 'dataset', 'train'))
@@ -244,9 +243,6 @@ def verify_dataset():
   print(f'Number of training images: {len(train_images)}.')
   print(f'Number of test images: {len(test_images)}.')
   print(f'Number of holdout images: {len(holdout_images)}.')
-  assert(len(train_images) == 1024)
-  assert(len(test_images) == 32)
-  assert(len(holdout_images) == 32)
 
   def names(paths):
     return [name(p) for p in paths]
@@ -372,7 +368,6 @@ def compute_flattened_masks(image_mask_computations):
 def save_mask(image_mask, outdir = os.path.join(ROOT, 'raw_data', 'masks')):
   image, mask = image_mask
   p = os.path.join(outdir, image)
-  print(f'Writing {p}.')
   cv2.imwrite(os.path.join(outdir, image), mask)
 
 def load_and_write_masks(
