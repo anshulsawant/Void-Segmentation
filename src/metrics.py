@@ -45,9 +45,9 @@ def feature_counts(mask_true, mask_pred, threshold = 0.5):
     ## fp + tn = number of predicted features
     fp = ious.shape[1] - tp
     fn = ious.shape[0] - tp
-    return np.array([tp, fp, fn, threshold])
+    return np.array([tp, fp, fn]), threshold
 
-def feature_metrics(counts):
+def feature_metrics(counts, threshold):
     n = np.sum(counts, axis = 0)
     tp = n[0]
     fp = n[1]
