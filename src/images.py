@@ -75,53 +75,43 @@ def get_bboxes(mask):
 
 
 def split_and_write_images(in_dir = os.path.join(ROOT, 'raw_data'),
-                           out_dir = os.path.join(ROOT, 'dataset'), seed=42):
-  image_paths = sorted(glob(os.path.join(in_dir, 'images', '*.tif')))
-  print(f'Reading {len(image_paths)} images.')
-  assert(len(image_paths) > 0)
-  print(f'Name of an image file: {image_paths[0]}.')
+                           out_dir = os.path.join(ROOT, 'dataset')):
+  image_paths = glob(os.path.join(in_dir, 'images', '*.tif'))
+  existing_split_images = glob(os.path.join(in_dir, 'images', 'split', '*.*'))
+  for f in existing_split_images:
+    os.remove(f)
   def name(path):
     return os.path.splitext(os.path.basename(path))[0]
   split_images = [
-      [(f'{name(path)}_{i}', sp) for i, sp in enumerate(split(load_equalized_image(path)))]
+      [(f'{name(path)}_{i}', sp)
+      for i, sp in enumerate(split(load_equalized_image(path)))]
       for path in image_paths]
   split_images = [x for xs in split_images for x in xs]
-  split_images = [(name, image)
-                  for (name, image) in split_images
-                  if ('13_2' not in name) and ('13_3' not in name)]
-  print(f'Split into {len(split_images)} images.')
-  random.Random(seed).shuffle(split_images)
-  sz = len(split_images)
-  train_segment = range(0, (2*sz)//3)
-  print(f'Selected {len(train_segment)} image for training.')
-  test_segment = range((2*sz)//3, (5*sz)//6)
-  print(f'Selected {len(test_segment)} image for testing.')
-  holdout_segment = range((5*sz)//6, sz)
-  print(f'Selected {len(holdout_segment)} image for holdout.')
-  def full_path(segment, image_type, name):
-    x = os.path.join(out_dir, segment, image_type, f'{name}.png')
+  def full_path(name):
+    x = os.path.join(in_dir, 'images', 'split', f'{name}.png')
     return x
-  for i in train_segment:
-    cv2.imwrite(full_path('train', 'images', split_images[i][0]), split_images[i][1].numpy())
-  for i in test_segment:
-    cv2.imwrite(full_path('test', 'images', split_images[i][0]), split_images[i][1].numpy())
-  for i in holdout_segment:
-    cv2.imwrite(full_path('holdout', 'images', split_images[i][0]), split_images[i][1].numpy())
-  return [i[0] for i in split_images], train_segment, test_segment, holdout_segment
+  for name, img in split_images:
+    p = full_path(name)
+    cv2.imwrite(p, img.numpy())
 
-def copy_json_masks(
+
+
+
+def copy_json_masks_and_split_images(
     in_dir = os.path.join(ROOT, 'raw_data'),
     out_dir = os.path.join(ROOT, 'dataset'),
     seed = 42):
   mask_paths = sorted(glob(os.path.join(in_dir, 'json_masks', '*.png')))
-  mask_names = [os.path.basename(p) for p in mask_paths]
+  image_paths = [os.path.join(in_dir, 'images', 'split', n) for n in mask_names]
   print(f'Reading {len(mask_names)} mask images.')
   assert(len(mask_names) > 0)
   print(f'Name of a mask file: {mask_paths[0]}.')
-  random.Random(seed).shuffle(mask_names)
-  random.Random(seed).shuffle(mask_paths)
-  sz = len(mask_names)
-  train_segment = range(0, (2*sz)//3)
+  print(f'Name of an image file: {image_paths[0]}.')
+  shuffled = random.Random(seed).shuffle(range(len(mask_paths)))
+  sz = len(mask_paths)
+  train_segment = shuffled[0: ((2*sz)//3)]
+  test_segment = shuffled[((2*sz)//3):((5*sz)//6)]
+  holdout_segment = shuffled[((5*sz)//6):sz]
   print(f'Selected {len(train_segment)} masks for training.')
   test_segment = range((2*sz)//3, (5*sz)//6)
   print(f'Selected {len(test_segment)} masks for testing.')
@@ -129,59 +119,13 @@ def copy_json_masks(
   print(f'Selected {len(holdout_segment)} masks for holdout.')
   for i in train_segment:
     shutil.copy2(mask_paths[i], os.path.join(out_dir, 'train', 'masks'))
+    shutil.copy2(image_paths[i], os.path.join(out_dir, 'train', 'images'))
   for i in test_segment:
     shutil.copy2(mask_paths[i], os.path.join(out_dir, 'test', 'masks'))
+    shutil.copy2(image_paths[i], os.path.join(out_dir, 'test', 'images'))
   for i in holdout_segment:
     shutil.copy2(mask_paths[i], os.path.join(out_dir, 'holdout', 'masks'))
-  return [os.path.splitext(i)[0] for i in mask_names], train_segment, test_segment, holdout_segment
-
-# ## For generating dataset from the raw images
-# def split_and_write_images(in_dir=os.path.join(ROOT, 'raw_data'),
-#                            out_dir = os.path.join(ROOT, 'dataset'),
-#                            json_mask=True):
-#   dirs = (os.path.join(in_dir, 'images/*.tif'),
-#           os.path.join(in_dir, 'raw_data', 'json_masks', '*.tif'))
-#   image_paths, mask_paths = sorted(glob(dirs[0])), sorted(glob(dirs[1]))
-#   print(f'Reading {len(image_paths)} images and masks.')
-#   assert(len(image_paths) > 0)
-#   print(f'Name of an image file: {image_paths[0]}.')
-#   assert([os.path.basename(path) for path in image_paths]
-#         == [os.path.basename(path) for path in mask_paths])
-#   def name(path):
-#     return os.path.splitext(os.path.basename(path))[0]
-#   split_images = [[(f'{name(path)}_{i}', sp) for i, sp in enumerate(split(load_equalized_image(path)))] for path in image_paths]
-#   split_images = [x for xs in split_images for x in xs]
-#   split_masks = [[(f'{name(path)}_{i}', sp) for i, sp in enumerate(split(load_binary_mask(path)))] for path in mask_paths]
-#   split_masks = [x for xs in split_masks for x in xs]
-#   ## Images 13_2 and 13_3 have a big overalay specifying scale of the images. A small part is also in 14_2, but we
-#   ## can probably live with that.
-#   split_images = [(name, image) for (name, image) in split_images if ('13_2' not in name) and ('13_3' not in name)]
-#   split_masks = [(name, image) for (name, image) in split_masks if ('13_2' not in name) and ('13_3' not in name)]
-#   print(f'Split into {len(split_images)} images and masks.')
-#   assert([n for n, _ in split_masks] == [n for n, _ in split_images])
-#   seed = 42
-#   random.Random(seed).shuffle(split_images)
-#   random.Random(seed).shuffle(split_masks)
-#   assert([n for n, _ in split_masks] == [n for n, _ in split_images])
-#   sz = len(split_images)
-#   train_segment = range(0, (2*sz)//3)
-#   print(f'Selected {len(train_segment)} image for training.')
-#   test_segment = range((2*sz)//3, (5*sz)//6)
-#   print(f'Selected {len(test_segment)} image for testing.')
-#   holdout_segment = range((5*sz)//6, sz)
-#   print(f'Selected {len(holdout_segment)} image for holdout.')
-#   def full_path(segment, image_type, name):
-#     x = os.path.join(out_dir, segment, image_type, f'{name}.png')
-#     return x
-#   for i in train_segment:
-#     cv2.imwrite(full_path('train', 'images', split_images[i][0]), split_images[i][1].numpy())
-#     cv2.imwrite(full_path('train', 'masks', split_masks[i][0]), split_masks[i][1].numpy())
-#   for i in test_segment:
-#     cv2.imwrite(full_path('test', 'images', split_images[i][0]), split_images[i][1].numpy())
-#     cv2.imwrite(full_path('test', 'masks', split_masks[i][0]), split_masks[i][1].numpy())
-#   for i in holdout_segment:
-#     cv2.imwrite(full_path('holdout', 'images', split_images[i][0]), split_images[i][1].numpy())
-#     cv2.imwrite(full_path('holdout', 'masks', split_masks[i][0]), split_masks[i][1].numpy())
+    shutil.copy2(image_paths[i], os.path.join(out_dir, 'holdout', 'images'))
 
 def is_transformed(path):
   name = os.path.splitext(os.path.basename(path))[0]
@@ -406,7 +350,7 @@ def regions_to_masks(image_metadata):
   filename = image_metadata['filename']
   if len(regions) == 0:
     print(f'Warning: no masks provided for {filename}.')
-  return filename, [region_to_mask(r) for r in regions]
+  return filename, [region_to_mask(r) for r in regions if r]
 
 def flatten_masks(mask_computations):
   x = trivial_mask()
@@ -414,7 +358,8 @@ def flatten_masks(mask_computations):
     x = np.logical_or(x, c())
   return x*255
 
-def load_masks_json(base_dir = ROOT, fn = '0636_masks.json'):
+def load_masks_json(base_dir = os.path.join(ROOT, 'raw_data', 'json_masks'),
+                    fn = 'shradha_masks (15).json'):
   image_data = list(json.load(open(os.path.join(base_dir, fn)))[
       '_via_img_metadata'].values())
   return [regions_to_masks(i) for i in image_data]
@@ -431,15 +376,18 @@ def save_mask(image_mask, outdir = os.path.join(ROOT, 'raw_data', 'masks')):
   cv2.imwrite(os.path.join(outdir, image), mask)
 
 def load_and_write_masks(
-    base_dir = ROOT,
-    fn='0636_masks.json',
-    outdir = os.path.join(ROOT, 'raw_data', 'masks')):
+    base_dir = os.path.join(ROOT, 'raw_data', 'json_masks'),
+    fn='shradha_masks (15).json',
+    outdir = os.path.join(ROOT, 'raw_data', 'json_masks')):
   for image_mask in compute_flattened_masks(load_masks_json(base_dir = base_dir, fn = fn)):
     save_mask(image_mask, outdir = outdir)
 
 def load_and_write_masks_in_dir(
     base_dir = os.path.join(ROOT, 'raw_data', 'json_masks')):
   files = glob(os.path.join(base_dir, '*.json'))
+  existing_mask_images = glob(os.path.join(base_dir, '*.png'))
+  for f in existing_mask_images:
+    os.remove(f)
   for f in files:
     print(f'Loading file: {f}.')
     load_and_write_masks(base_dir=base_dir, fn=f, outdir=base_dir)
