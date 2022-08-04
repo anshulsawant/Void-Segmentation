@@ -45,7 +45,7 @@ def feature_counts(mask_true, mask_pred, threshold = 0.5):
     ## fp + tn = number of predicted features
     fp = ious.shape[1] - tp
     fn = ious.shape[0] - tp
-    return np.array([tp, fp, fn]), threshold
+    return np.array([tp, fp, fn, threshold])
 
 def feature_metrics(counts, threshold):
     n = np.sum(counts, axis = 0)
@@ -57,4 +57,4 @@ def feature_metrics(counts, threshold):
     intersection = tp
     union = tp + fn + fn
     iou = intersection/union
-    return np.array([precision, recall, iou, threshold])
+    return np.array([precision, recall, iou, counts[0,3]])
