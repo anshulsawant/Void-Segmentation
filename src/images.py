@@ -73,8 +73,20 @@ def split(image, size=1024):
 def get_bboxes(mask):
   x = mask.numpy()
   x = x.reshape((x.shape[0], x.shape[1]))
-  return np.concatenate([np.reshape(prop["bbox"], (1, 4)) for prop in measure.regionprops(measure.label(x))])
+  return np.concatenate(
+      [np.reshape(prop["bbox"], (1, 4)) for prop in measure.regionprops(measure.label(x))])
 
+def get_distance_map(mask):
+  x = mask.numpy()
+  x = x.reshape((x.shape[0], x.shape[1]))
+  labels = measure.label(x)
+  t = ndimage.distance_transform_edt(x)
+  for l in range(1, np.max(labels)):
+    m = np.max(t[labels == l])
+    print(m)
+    t[labels==l] = 1 - (t[labels==l]/m)
+    print(np.max(t[labels == l]))
+  return t
 
 def split_and_write_images(in_dir = os.path.join(ROOT, 'raw_data'),
                            out_dir = os.path.join(ROOT, 'dataset')):
