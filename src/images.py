@@ -100,7 +100,8 @@ def copy_json_masks_and_split_images(
     out_dir = os.path.join(ROOT, 'dataset'),
     seed = 42):
   mask_paths = sorted(glob(os.path.join(in_dir, 'json_masks', '*.png')))
-  image_paths = [os.path.join(in_dir, 'images', 'split', n) for n in mask_paths]
+  mask_names = [os.path.basename(p) for p in mask_paths]
+  image_paths = [os.path.join(in_dir, 'images', 'split', n) for n in mask_names]
   print(f'Reading {len(mask_paths)} mask images.')
   assert(len(mask_paths) > 0)
   print(f'Name of a mask file: {mask_paths[0]}.')
@@ -190,6 +191,7 @@ def compute_and_write_bboxes(
 def recreate_dataset():
   clear_dataset()
   load_and_write_masks_in_dir()
+  split_and_write_images()
   copy_json_masks_and_split_images()
   rotate_images_in_dir(os.path.join(ROOT, 'dataset', 'train', 'images'))
   rotate_images_in_dir(os.path.join(ROOT, 'dataset', 'train', 'masks'), mask = True)
@@ -344,8 +346,8 @@ def region_to_mask(region_json):
 def regions_to_masks(image_metadata):
   regions = image_metadata['regions']
   filename = image_metadata['filename']
-  if len(regions) == 0:
-    print(f'Warning: no masks provided for {filename}.')
+  # if len(regions) == 0:
+  #   print(f'Warning: no masks provided for {filename}.')
   return filename, [region_to_mask(r) for r in regions if r]
 
 def flatten_masks(mask_computations):
