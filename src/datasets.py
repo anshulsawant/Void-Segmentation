@@ -32,7 +32,7 @@ def _load_mask_rcnn_data(image, mask, bboxes):
   return (img, rpn_labels)
 
 def create_dataset(dir=os.path.join(images.ROOT, 'dataset'), batch=8):
-  image_paths, masks, _, _ = images.load_image_paths(dir=dir, segment = 'train')
+  image_paths, masks, _, _ = images.load_image_paths(base=dir, segment = 'train')
   train_size = len(image_paths)*4//5
   print(f'Creating dataset with {len(image_paths)} images.')
   print(f'Using {train_size} images for training.')
@@ -43,12 +43,12 @@ def create_dataset(dir=os.path.join(images.ROOT, 'dataset'), batch=8):
   return (train_ds, val_ds)
 
 def create_test_dataset(dir = os.path.join(images.ROOT, 'dataset'), batch=8):
-  image_paths, masks, _, _ = images.load_image_paths(dir=dir, segment = 'test')
+  image_paths, masks, _, _ = images.load_image_paths(base=dir, segment = 'test')
   print(f'Loading {len(image_paths)} images for testing.')
   return tf.data.Dataset.from_tensor_slices((image_paths, masks)).map(_load_data).batch(batch)
 
 def create_mask_rcnn_dataset(dir=os.path.join(images.ROOT, 'dataset'), batch=1):
-  image_paths, masks, bboxes, _ = images.load_image_paths(dir=dir, segment = 'train')
+  image_paths, masks, bboxes, _ = images.load_image_paths(base=dir, segment = 'train')
   train_size = len(image_paths)*4//5
   print(f'Creating dataset with {len(image_paths)} images.')
   print(f'Using {train_size} images for training.')
