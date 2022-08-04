@@ -48,6 +48,7 @@ def feature_counts(mask_true, mask_pred, threshold = 0.5):
     return np.array([tp, fp, fn])
 
 def feature_metrics(counts):
+    n = np.sum(counts, axis = 1)
     tp = n[0]
     fp = n[1]
     fn = n[2]
