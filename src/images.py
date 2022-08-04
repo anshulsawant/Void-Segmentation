@@ -11,6 +11,7 @@ import platform
 import random
 import tensorflow as tf
 import shutil
+from collections import defaultdict
 
 ROOT = ('/usr/local/google/home/asawant/Void-Segmentation'
         if platform.node().endswith(
@@ -385,9 +386,28 @@ def load_and_write_masks_in_dir(
   existing_mask_images = glob(os.path.join(base_dir, '*.png'))
   for f in existing_mask_images:
     os.remove(f)
-  for f in files:
-    print(f'Loading file: {f}.')
-    load_and_write_masks(base_dir=base_dir, fn=f, outdir=base_dir)
+  x = load_all_json_files(base_dir = base_dir)
+  for image_mask in compute_flattened_masks(x):
+    save_mask(image_mask, outdir = base_dir)
+
+
+def load_all_json_files(
+    base_dir = os.path.join(ROOT, 'raw_data', 'json_masks')):
+  files = glob(os.path.join(base_dir, '*.json'))
+  d = defaultdict(lambda: [])
+  for fn in files:
+    j = load_masks_json(base_dir = base_dir, fn = fn)
+    for f, r in j:
+      if len(d[f]) < len(r):
+        d[f] = r
+  return [(k, d[k]) for k in d.keys()]
+
+def load_and_write_masks(
+    base_dir = os.path.join(ROOT, 'raw_data', 'json_masks'),
+    fn='shradha_masks (15).json',
+    outdir = os.path.join(ROOT, 'raw_data', 'json_masks')):
+  for image_mask in compute_flattened_masks(load_masks_json(base_dir = base_dir, fn = fn)):
+    save_mask(image_mask, outdir = outdir)
 
 def pretty_print_json(base_dir = os.path.join(ROOT, 'raw_data', 'json_masks')):
   files = glob(os.path.join(base_dir, '*.json'))
