@@ -15,8 +15,8 @@ def mask_sizes(mask):
 def filter_tiny_masks(mask, threshold = 50):
     labels = measure.label(as_np(mask))
     sizes = np.unique(labels, return_counts=True)
-    tiny = np.where(sizes[1] <= threshold)
-    for t in tiny:
+    tiny = np.asarray(sizes[1] <= threshold).nonzero()
+    for t in tiny[0]:
         labels[labels == t] = 0
     labels[labels > 0] = 1
     return labels
@@ -45,9 +45,9 @@ def feature_counts(mask_true, mask_pred, threshold = 0.5):
     ## fp + tn = number of predicted features
     fp = ious.shape[1] - tp
     fn = ious.shape[0] - tp
-    return np.array([tp, fp, fn, threshold])
+    return np.array([tp, fp, fn])
 
-def feature_metrics(counts, threshold):
+def _feature_metrics(counts):
     n = np.sum(counts, axis = 0)
     tp = n[0]
     fp = n[1]
@@ -57,4 +57,18 @@ def feature_metrics(counts, threshold):
     intersection = tp
     union = tp + fn + fn
     iou = intersection/union
-    return np.array([precision, recall, iou, counts[0,3]])
+    return np.array([precision, recall, iou])
+
+
+def feature_metrics(masks, masks_pred, threshold, size = 512):
+  N = masks.shape[0]
+  counts = []
+  for i in range(N):
+    mask_pred = np.reshape(masks_pred[i], (size, size))
+    mask = np.reshape(masks[i], (size, size))
+    counts = counts + [feature_counts(mask, mask_pred, threshold = threshold)]
+  counts = np.stack(counts, axis=0)
+  return np.append(_feature_metrics(counts), [threshold])
+
+def all_feature_metrics(masks, masks_pred, thresholds, size = 512):
+    return np.stack([feature_metrics(masks, masks_pred, t) for t in thresholds])
