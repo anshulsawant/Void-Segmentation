@@ -47,6 +47,11 @@ def create_test_dataset(dir = os.path.join(images.ROOT, 'dataset'), batch=8):
   print(f'Loading {len(image_paths)} images for testing.')
   return tf.data.Dataset.from_tensor_slices((image_paths, masks)).map(_load_data).batch(batch)
 
+def create_holdout_dataset(dir = os.path.join(images.ROOT, 'dataset'), batch=8):
+  image_paths, masks, _, _ = images.load_image_paths(base=dir, segment = 'holdout')
+  print(f'Loading {len(image_paths)} images for testing.')
+  return tf.data.Dataset.from_tensor_slices((image_paths, masks)).map(_load_data).batch(batch)
+
 def create_mask_rcnn_dataset(dir=os.path.join(images.ROOT, 'dataset'), batch=1):
   image_paths, masks, bboxes, _ = images.load_image_paths(base=dir, segment = 'train')
   train_size = len(image_paths)*4//5

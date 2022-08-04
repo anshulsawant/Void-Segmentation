@@ -3,6 +3,7 @@
 from glob import glob
 from scipy import spatial
 from skimage import measure
+from scipy import ndimage
 import cv2
 import json
 import numpy as np
