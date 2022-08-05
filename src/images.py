@@ -83,10 +83,10 @@ def get_distance_map(mask):
   t = ndimage.distance_transform_edt(x)
   for l in range(1, np.max(labels)):
     m = np.max(t[labels == l])
-    print(m)
     t[labels==l] = 1 - (t[labels==l]/m)
-    print(np.max(t[labels == l]))
+    t[t > 1] = 1
   return t
+
 
 def split_and_write_images(in_dir = os.path.join(ROOT, 'raw_data'),
                            out_dir = os.path.join(ROOT, 'dataset')):
@@ -202,6 +202,21 @@ def compute_and_write_bboxes(
   print(f'Wrote {count} bounding boxes for {len(out_tf_paths)} images.')
 
 ## For generating dataset from the raw images
+def compute_and_write_distances(
+    in_path = os.path.join(ROOT, 'dataset', 'train'),
+    masks_dir = 'masks', distances_dir = 'distance'):
+  in_paths = glob(os.path.join(in_path, masks_dir) + '/*.png')
+  names = [os.path.splitext(os.path.basename(p))[0] for p in in_paths]
+  out_tf_paths = [os.path.join(in_path, distances_dir, n + '.tf') for n in names]
+  print(f'Writing distance map for {len(out_tf_paths)} images.')
+  for i, p in enumerate(in_paths):
+    distance_map = get_distance_map(load_mask(p))
+    ## Binary format
+    contents = tf.io.serialize_tensor(tf.convert_to_tensor(distance_map))
+    tf.io.write_file(out_tf_paths[i], contents)
+  print(f'Wrote distance maps for {len(out_tf_paths)} images.')
+
+## For generating dataset from the raw images
 def recreate_dataset():
   clear_dataset()
   load_and_write_masks_in_dir()
@@ -212,6 +227,9 @@ def recreate_dataset():
   compute_and_write_bboxes(in_path = os.path.join(ROOT, 'dataset', 'train'))
   compute_and_write_bboxes(in_path = os.path.join(ROOT, 'dataset', 'test'))
   compute_and_write_bboxes(in_path = os.path.join(ROOT, 'dataset', 'holdout'))
+  compute_and_write_distances(in_path = os.path.join(ROOT, 'dataset', 'train'))
+  compute_and_write_distances(in_path = os.path.join(ROOT, 'dataset', 'test'))
+  compute_and_write_distances(in_path = os.path.join(ROOT, 'dataset', 'holdout'))
 
 def summarise_dataset():
   dataset_path = os.path.join(ROOT,'dataset')
