@@ -72,3 +72,28 @@ def feature_metrics(masks, masks_pred, threshold, size = 512):
 
 def all_feature_metrics(masks, masks_pred, thresholds, size = 512):
     return np.stack([feature_metrics(masks, masks_pred, t) for t in thresholds])
+
+
+def _pixel_metrics(mask, mask_pred):
+    intersection = np.sum((mask == 1) &  (mask_pred == 1))
+    union = np.sum(mask) + np.sum(mask_pred) - intersection
+    iou = intersection/union
+    tp = intersection
+    fp = np.sum((mask_pred == 1) & (mask == 0))
+    tn = np.sum((mask_pred == 0) & (mask == 0))
+    fn = np.sum((mask_pred == 0) & (mask == 1))
+    recall = tp/(tp + fn)
+    precision = tp/(tp + fp)
+    return (precision, recall, iou)
+
+def pixel_metrics(masks, masks_pred, threshold):
+  N = masks.shape[0]
+  metrics = []
+  for i in range(N):
+    mask_pred = masks_pred > threshold
+    metrics = metrics + [_pixel_metrics(mask, mask_pred)]
+  metrics = np.mean(np.stack(metrics, axis=0), axis = 0)
+  return np.append(metrics, [threshold])
+
+def all_pixel_metrics(masks, masks_pred, thresholds):
+    return np.stack([pixel_metrics(masks, mask_pred, t) for t in thresholds], axis = 0)
