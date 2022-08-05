@@ -90,10 +90,10 @@ def pixel_metrics(masks, masks_pred, threshold):
   N = masks.shape[0]
   metrics = []
   for i in range(N):
-    mask_pred = masks_pred > threshold
-    metrics = metrics + [_pixel_metrics(mask, mask_pred)]
+    mask_pred = masks_pred[i] > threshold
+    metrics = metrics + [_pixel_metrics(masks[i], mask_pred)]
   metrics = np.mean(np.stack(metrics, axis=0), axis = 0)
   return np.append(metrics, [threshold])
 
 def all_pixel_metrics(masks, masks_pred, thresholds):
-    return np.stack([pixel_metrics(masks, mask_pred, t) for t in thresholds], axis = 0)
+    return np.stack([pixel_metrics(masks, masks_pred, t) for t in thresholds], axis = 0)
