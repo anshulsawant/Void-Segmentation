@@ -20,7 +20,7 @@ def _load_distance_data(image, mask, distance):
   def f(x, y, z):
     return (images.load_image(x.decode())/255.,
             tf.reshape(images.load_mask(y.decode()), (-1,1))/255.,
-            tf.io.prase_tensor(distance, dtype = tf.float32)))
+            tf.io.prase_tensor(distance, dtype = tf.float32))
   img, msk, dist = tf.numpy_function(
       f, [image, mask, distance], [tf.float32, tf.float32, tf.float32])
   img.set_shape([512, 512, 1])
