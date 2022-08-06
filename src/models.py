@@ -138,12 +138,12 @@ def train_rpn(epochs = 10, lr = 0.0001):
         loss = utils.RpnLoss(datasets.anchors).loss)
     rpn.fit(training_data, validation_data = validation_data, epochs=epochs)
 
-def distance_model():
-  inputs = keras.Input((SIZE//2, SIZE//2))
-  distances = keras.Input((SIZE//2 * SIZE//2))
+def distance_model(size):
+  inputs = keras.Input((size, size))
+  distances = keras.Input((size * size))
   filters = [4,16,32,64]
   x0 = inputs
-  x0 = layers.Reshape((SIZE//2, SIZE//2,1))(x0)
+  x0 = layers.Reshape((size, size,1))(x0)
   ## x0 = layers.Dropout(0.1) (x0)
 
   def down_block(filters, t, dropout = 0.2):
