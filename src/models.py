@@ -3,6 +3,7 @@ from tensorflow import keras
 from keras import layers
 import datasets
 import utils
+import losses
 
 class DownBlock(layers.Layer):
   def __init__(self, filters, bn=False):
@@ -177,4 +178,4 @@ def distance_model(size):
   y = layers.Flatten() (y)
   outputs = y
   model = keras.Model([inputs, distances], outputs)
-  return model
+  return model, losses.distance_loss(distances)

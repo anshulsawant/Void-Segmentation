@@ -26,7 +26,7 @@ def _load_distance_data(image, mask, distance):
   img.set_shape([512, 512, 1])
   msk.set_shape([512*512, 1])
   dist.set_shape([512*512, 1])
-  return (img, msk, dist)
+  return ([img, dist], mask)
 
 anchors = utils.anchor_pyramid()
 
