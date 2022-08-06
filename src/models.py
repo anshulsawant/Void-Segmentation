@@ -137,3 +137,44 @@ def train_rpn(epochs = 10, lr = 0.0001):
         keras.optimizers.Adam(learning_rate = lr),
         loss = utils.RpnLoss(datasets.anchors).loss)
     rpn.fit(training_data, validation_data = validation_data, epochs=epochs)
+
+def distance_model():
+  inputs = keras.Input((SIZE//2, SIZE//2))
+  distances = keras.Input((SIZE//2 * SIZE//2))
+  filters = [4,16,32,64]
+  x0 = inputs
+  x0 = layers.Reshape((SIZE//2, SIZE//2,1))(x0)
+  ## x0 = layers.Dropout(0.1) (x0)
+
+  def down_block(filters, t, dropout = 0.2):
+    t1 = layers.Conv2D(filters, 5, padding="same", activation="relu") (t)
+    t2 = layers.Conv2D(filters, 5, padding="same", activation="relu") (layers.concatenate([t, t1]))
+    t3 = layers.MaxPooling2D(padding="valid") (layers.concatenate([t, t1, t2]))
+    ## t3 = layers.Dropout(dropout)(t3)
+    return t1, t2, t3
+
+  x1, x2, x3 = down_block(4, x0)
+  x4, x5, x6 = down_block(16, x3)
+  x7, x8, x9 = down_block(32, x6)
+
+  def up_block(filters, t, dropout = 0.2):
+    t1 = layers.Conv2D(filters, 5, padding="same", activation="relu") (t)
+    t2 = layers.Conv2D(filters, 5, padding="same", activation="relu") (layers.concatenate([t, t1]))
+    t3 = layers.Conv2DTranspose(filters//2, 2, 2, padding="valid") (layers.concatenate([t, t1, t2]))
+    ## t3 = layers.Dropout(dropout)(t3)
+    return (t1, t2, t3)
+
+  x10, x11, x12 = up_block(64, x9)
+  x13, x14, x15 = up_block(32, layers.concatenate([x6, x7, x8, x12]))
+  x16, x17, x18 = up_block(16, layers.concatenate([x3, x4, x5, x15]))
+
+  x19 = layers.Conv2D(4, 3, activation="relu", padding="same") (
+      layers.concatenate([x0, x1, x2, x18]))
+  x20 = layers.Conv2D(2, 7, activation="softmax", padding="same") (
+      layers.concatenate([x0, x1, x2, x19]))
+
+  y = layers.Lambda(lambda x: x[:,:,:,1]) (x20)
+  y = layers.Flatten() (y)
+  outputs = y
+  model = keras.Model([inputs, distances], outputs)
+  return model

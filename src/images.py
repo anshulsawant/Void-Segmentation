@@ -24,7 +24,7 @@ def load_image_paths(base=os.path.join(ROOT, 'dataset'), segment='train'):
   dirs = (os.path.join(base, segment, 'images/*.png'),
           os.path.join(base, segment, 'masks/*.png'),
           os.path.join(base, segment, 'bboxes/*.tf'),
-          os.path.join(base, segment, 'bboxes/*.txt'))
+          os.path.join(base, segment, 'distance/*.tf'))
   return sorted(glob(dirs[0])), sorted(glob(dirs[1])), sorted(glob(dirs[2])), sorted(glob(dirs[3]))
 
 ## Load an image from the raw data
