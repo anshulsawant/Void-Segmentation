@@ -75,8 +75,8 @@ def all_feature_metrics(masks, masks_pred, thresholds, size = 512):
 
 
 def _pixel_metrics(mask, mask_pred, size = 512):
-    mask = np.reshape(as_np(mask), (512, 512))
-    mask_pred = np.reshape(as_np(mask_pred), (512, 512))
+    mask = np.reshape(as_np(mask), (size, size))
+    mask_pred = np.reshape(as_np(mask_pred), (size, size))
     intersection = np.sum((mask == 1) &  (mask_pred == 1))
     union = np.sum(mask) + np.sum(mask_pred) - intersection
     iou = intersection/union
@@ -86,7 +86,7 @@ def _pixel_metrics(mask, mask_pred, size = 512):
     fn = np.sum((mask_pred == 0) & (mask == 1))
     recall = tp/(tp + fn)
     precision = tp/(tp + fp)
-    return (precision, recall, iou)
+    return (precision, recall, iou, intersection/(size*size))
 
 def pixel_metrics(masks, masks_pred, threshold):
   N = masks.shape[0]
