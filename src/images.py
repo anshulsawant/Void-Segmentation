@@ -115,7 +115,7 @@ def split_and_write_images(in_dir = os.path.join(ROOT, 'raw_data'),
 def copy_json_masks_and_split_images(
     in_dir = os.path.join(ROOT, 'raw_data'),
     out_dir = os.path.join(ROOT, 'dataset'),
-    seed = 42):
+    seed = 6855):
   mask_paths = sorted(glob(os.path.join(in_dir, 'json_masks', '*.png')))
   mask_names = [os.path.basename(p) for p in mask_paths]
   image_paths = [os.path.join(in_dir, 'images', 'split', n) for n in mask_names]
@@ -126,23 +126,16 @@ def copy_json_masks_and_split_images(
   shuffled = list(range(len(mask_paths)))
   random.Random(seed).shuffle(shuffled)
   sz = len(mask_paths)
-  train_segment = shuffled[0: ((2*sz)//3)]
-  test_segment = shuffled[((2*sz)//3):((5*sz)//6)]
-  holdout_segment = shuffled[((5*sz)//6):sz]
-  print(f'Selected {len(train_segment)} masks for training.')
-  test_segment = range((2*sz)//3, (5*sz)//6)
-  print(f'Selected {len(test_segment)} masks for testing.')
-  holdout_segment = range((5*sz)//6, sz)
-  print(f'Selected {len(holdout_segment)} masks for holdout.')
+  train_segment = shuffled[0:((4*sz)//5)]
+  test_segment = shuffled[((4*sz)//5):sz]
+  print(f'Selected {len(train_segment)} images for training.')
+  print(f'Selected {len(test_segment)} images for testing.')
   for i in train_segment:
     shutil.copy2(mask_paths[i], os.path.join(out_dir, 'train', 'masks'))
     shutil.copy2(image_paths[i], os.path.join(out_dir, 'train', 'images'))
   for i in test_segment:
     shutil.copy2(mask_paths[i], os.path.join(out_dir, 'test', 'masks'))
     shutil.copy2(image_paths[i], os.path.join(out_dir, 'test', 'images'))
-  for i in holdout_segment:
-    shutil.copy2(mask_paths[i], os.path.join(out_dir, 'holdout', 'masks'))
-    shutil.copy2(image_paths[i], os.path.join(out_dir, 'holdout', 'images'))
 
 def is_transformed(path):
   name = os.path.splitext(os.path.basename(path))[0]
@@ -213,7 +206,7 @@ def compute_and_write_distances(
   out_tf_paths = [os.path.join(in_path, distances_dir, n + '.tf') for n in names]
   print(f'Writing distance map for {len(out_tf_paths)} images.')
   for i, p in enumerate(in_paths):
-    distance_map = get_distance_map(load_mask(p)) + 1.
+    distance_map = get_distance_map(load_mask(p))
     ## Binary format
     contents = tf.io.serialize_tensor(tf.convert_to_tensor(distance_map, dtype=tf.float32))
     tf.io.write_file(out_tf_paths[i], contents)
@@ -222,7 +215,7 @@ def compute_and_write_distances(
 ## For generating dataset from the raw images
 def recreate_dataset():
   clear_dataset()
-  load_and_write_masks_in_dir()
+  write_masks_in_dir()
   split_and_write_images()
   copy_json_masks_and_split_images()
   rotate_images_in_dir(os.path.join(ROOT, 'dataset', 'train', 'images'))
@@ -302,12 +295,15 @@ def clear_dataset(dir = os.path.join(ROOT, 'dataset')):
   train_images = os.path.join(dir, 'train', 'images')
   train_masks = os.path.join(dir, 'train', 'masks')
   train_bboxes = os.path.join(dir, 'train', 'bboxes')
+  train_distances = os.path.join(dir, 'train', 'distance')
   test_images = os.path.join(dir, 'test', 'images')
   test_masks = os.path.join(dir, 'test', 'masks')
   test_bboxes = os.path.join(dir, 'test', 'bboxes')
+  test_distances = os.path.join(dir, 'test', 'distance')
   holdout_images = os.path.join(dir, 'holdout', 'images')
   holdout_masks = os.path.join(dir, 'holdout', 'masks')
   holdout_bboxes = os.path.join(dir, 'holdout', 'bboxes')
+  holdout_distances = os.path.join(dir, 'holdout', 'distance')
 
   def delete(folder):
     files = glob(os.path.join(folder, '*'))
@@ -318,12 +314,15 @@ def clear_dataset(dir = os.path.join(ROOT, 'dataset')):
   delete(train_images)
   delete(train_masks)
   delete(train_bboxes)
+  delete(train_distances)
   delete(test_images)
   delete(test_masks)
   delete(test_bboxes)
+  delete(test_distances)
   delete(holdout_images)
   delete(holdout_masks)
   delete(holdout_bboxes)
+  delete(holdout_distances)
 
 def polyline_mask(xs, ys):
   ps = np.dstack((xs, ys))[0]
@@ -385,6 +384,13 @@ def regions_to_masks(image_metadata):
   #   print(f'Warning: no masks provided for {filename}.')
   return filename, [region_to_mask(r) for r in regions if r]
 
+def regions_to_masks_for_consolidation(image_metadata):
+  regions = image_metadata['regions']
+  filename = image_metadata['filename']
+  # if len(regions) == 0:
+  #   print(f'Warning: no masks provided for {filename}.')
+  return filename, regions
+
 def flatten_masks(mask_computations):
   x = trivial_mask()
   for c in mask_computations:
@@ -396,6 +402,13 @@ def load_masks_json(base_dir = os.path.join(ROOT, 'raw_data', 'json_masks'),
   image_data = list(json.load(open(os.path.join(base_dir, fn)))[
       '_via_img_metadata'].values())
   return [regions_to_masks(i) for i in image_data]
+
+def load_masks_json_for_consolidation(
+    base_dir = os.path.join(ROOT, 'raw_data', 'json_masks'),
+    fn = 'shradha_masks (15).json'):
+  image_data = list(json.load(open(os.path.join(base_dir, fn)))[
+      '_via_img_metadata'].values())
+  return [regions_to_masks_for_consolidation(i) for i in image_data]
 
 def compute_flattened_masks(image_mask_computations):
   return [(i, flatten_masks(computations))
@@ -436,6 +449,17 @@ def load_all_json_files(
         d[f] = r
   return [(k, d[k]) for k in d.keys()]
 
+def load_all_json_files_for_consolidation(
+    base_dir = os.path.join(ROOT, 'raw_data', 'json_masks')):
+  files = glob(os.path.join(base_dir, '*.json'))
+  d = defaultdict(lambda: [])
+  for fn in files:
+    j = load_masks_json_for_consolidation(base_dir = base_dir, fn = fn)
+    for f, r in j:
+      if len(d[f]) < len(r):
+        d[f] = r
+  return [{"filename" : k, "regions" : d[k]} for k in d.keys()]
+
 def load_and_write_masks(
     base_dir = os.path.join(ROOT, 'raw_data', 'json_masks'),
     fn='shradha_masks (15).json',
@@ -451,3 +475,31 @@ def pretty_print_json(base_dir = os.path.join(ROOT, 'raw_data', 'json_masks')):
     s = json.load(open(f))
     with open(os.path.join(pretty_dir, n), 'w') as outfile:
       outfile.write(json.dumps(s, indent=2, sort_keys=True))
+
+def load_and_write_consolidated_json(base_dir = os.path.join(ROOT, 'raw_data', 'json_masks')):
+  x = load_all_json_files_for_consolidation(base_dir = base_dir)
+  y = json.JSONEncoder(indent=2, sort_keys=True).encode(x)
+  p = os.path.join(base_dir, 'consolidated', 'consolidated.json')
+  with open(p, 'w') as outfile:
+    outfile.write(y)
+
+def load_consolidated_json(
+    json_file = os.path.join(ROOT, 'raw_data', 'json_masks', 'consolidated', 'consolidated.json')):
+    json_data = json.load(open(json_file))
+    compute_flattened_masks([regions_to_masks(d) for d in json_data])
+    regions = image_metadata['regions']
+    filename = image_metadata['filename']
+    # if len(regions) == 0:
+    #   print(f'Warning: no masks provided for {filename}.')
+    return filename, [region_to_mask(r) for r in regions if r]
+
+def write_masks_in_dir(
+    base_dir = os.path.join(ROOT, 'raw_data', 'json_masks')):
+  json_file = os.path.join(base_dir, 'consolidated', 'consolidated.json')
+  existing_mask_images = glob(os.path.join(base_dir, '*.png'))
+  for f in existing_mask_images:
+    os.remove(f)
+  json_data = json.load(open(json_file))
+  x = [regions_to_masks(d) for d in json_data]
+  for image_mask in compute_flattened_masks(x):
+    save_mask(image_mask, outdir = base_dir)
