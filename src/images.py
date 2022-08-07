@@ -58,6 +58,9 @@ def load_bb(path):
 def load_bb_np(path):
   return np.loadtxt(path)
 
+def load_distances(path):
+  return tf.io.parse_tensor(tf.io.read_file(path), out_type=tf.float32)
+
 ## For generating dataset from the raw images.
 def split(image, size=1024):
   half = size//2
@@ -210,9 +213,9 @@ def compute_and_write_distances(
   out_tf_paths = [os.path.join(in_path, distances_dir, n + '.tf') for n in names]
   print(f'Writing distance map for {len(out_tf_paths)} images.')
   for i, p in enumerate(in_paths):
-    distance_map = get_distance_map(load_mask(p))
+    distance_map = get_distance_map(load_mask(p)) + 1.
     ## Binary format
-    contents = tf.io.serialize_tensor(tf.convert_to_tensor(distance_map))
+    contents = tf.io.serialize_tensor(tf.convert_to_tensor(distance_map, dtype=tf.float32))
     tf.io.write_file(out_tf_paths[i], contents)
   print(f'Wrote distance maps for {len(out_tf_paths)} images.')
 

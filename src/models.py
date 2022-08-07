@@ -141,7 +141,6 @@ def train_rpn(epochs = 10, lr = 0.0001):
 
 def distance_model(size):
   inputs = keras.Input((size, size))
-  distances = keras.Input((size * size))
   filters = [4,16,32,64]
   x0 = inputs
   x0 = layers.Reshape((size, size,1))(x0)
@@ -175,7 +174,7 @@ def distance_model(size):
       layers.concatenate([x0, x1, x2, x19]))
 
   y = layers.Lambda(lambda x: x[:,:,:,1]) (x20)
-  y = layers.Flatten() (y)
-  outputs = y
-  model = keras.Model([inputs, distances], outputs)
-  return model, losses.distance_loss(distances)
+  y = layers.Flatten()(y)
+  output = layers.Concatenate()([y, y])
+  model = keras.Model(inputs, output)
+  return model
