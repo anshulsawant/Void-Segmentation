@@ -6,7 +6,7 @@ from keras import layers
 def distance_loss(y_true, y_pred):
     s = tf.cast(y_true.shape[1]/2, tf.int32)
     y_true_mask = y_true[:,0:s]
-    y_true_dist = y_true[:,s:-1] + 1
+    y_true_dist = y_true[:,s:2*s] + 1
     bce = K.binary_crossentropy(y_true_mask, y_pred[:,0:s])
     return K.mean(y_true_dist*bce)
 
