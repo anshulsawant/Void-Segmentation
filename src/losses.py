@@ -3,7 +3,7 @@ from tensorflow import keras
 from keras import backend as K
 from keras import layers
 
-def distance_loss():
+def distance_loss(y_true, y_pred):
     s = tf.cast(y_true.shape[1]/2, tf.int32)
     y_true_mask = y_true[:,0:s]
     y_true_dist = y_true[:,s:-1] + 1
