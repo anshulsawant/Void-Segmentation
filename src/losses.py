@@ -4,13 +4,10 @@ from keras import backend as K
 from keras import layers
 
 def distance_loss(y_true, y_pred):
-  print(y_true.shape)
-  print(y_pred.shape)
   s = tf.cast(y_true.shape[1]/2, tf.int32)
   y_true_mask = y_true[:,0:(s-1)]
   y_true_dist = y_true[:,s:-1]
   bce = K.binary_crossentropy(y_true_mask, y_pred[:,0:(s-1)])
-  print(bce.shape)
   return K.mean(y_true_dist*bce)
 
 
