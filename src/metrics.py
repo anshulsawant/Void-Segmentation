@@ -57,7 +57,8 @@ def _feature_metrics(counts):
     intersection = tp
     union = tp + fn + fn
     iou = intersection/union
-    return np.array([precision, recall, iou])
+    accuracy = tp/(tp + fp + fn)
+    return np.array([precision, recall, iou, accuracy])
 
 def feature_metrics(masks, masks_pred, threshold, size = 512):
   N = masks.shape[0]
@@ -85,8 +86,10 @@ def _pixel_metrics(mask, mask_pred, size = 512):
     fn = np.sum((mask_pred == 0) & (mask == 1))
     recall = tp/(tp + fn)
     precision = tp/(tp + fp)
-    area_err = np.abs(1- np.sum(mask_pred)/np.sum(mask))
-    return (precision, recall, iou, np.sum(mask == mask_pred)/(size*size), area_err)
+    absolute_area_err = np.abs(1- np.sum(mask_pred)/np.sum(mask))
+    area_err =(1- np.sum(mask_pred)/np.sum(mask))
+    return (precision, recall, iou, np.sum(mask == mask_pred)/(size*size), absolute_area_err,
+            area_err)
 
 def pixel_metrics(masks, masks_pred, threshold):
   N = masks.shape[0]
