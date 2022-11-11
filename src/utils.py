@@ -109,11 +109,11 @@ def anchor_gt_assignment(anchors, gt_boxes, N=100):
   n_negative_anchors = tf.reduce_sum(tf.cast(negative_anchors, dtype=tf.int32))
   ## Don't sample more positive anchors than negative anchors
   num_positive_samples = tf.math.reduce_min([
-    n_negative_anchors, n_positive_anchors, N
+    n_negative_anchors, n_positive_anchors, N//2
   ])
   ## Don't sample more negative samples than 3 times the positive samples
   num_negative_samples = tf.math.reduce_min([
-    3*n_positive_anchors, n_negative_anchors, N
+    3*n_positive_anchors, n_negative_anchors, N - num_positive_samples
   ])
   positive_anchor_indices = tf.cast(tf.reshape(tf.random.shuffle(tf.where(positive_anchors))[
     0:num_positive_samples
@@ -128,19 +128,19 @@ def anchor_gt_assignment(anchors, gt_boxes, N=100):
   positive_anchor_coords = tf.gather(anchors, positive_anchor_indices)
   deltas = perturbations(positive_anchor_coords, best_gt_boxes)
   padding = tf.zeros(
-      N - positive_anchor_indices.shape[0] - negative_anchor_indices.shape[0],
-      6)
-  positive_anchor_slice = tf.stack(
+      (N - positive_anchor_indices.shape[0] - negative_anchor_indices.shape[0],
+      6), dtype=tf.float32)
+  positive_anchor_slice = tf.concat(
       [
-          positive_anchor_indices,
-          tf.ones((positive_anchor_indices.shape[0])),
-          deltas],
+          tf.reshape(tf.cast(positive_anchor_indices, dtype=tf.float32), (-1, 1)),
+          tf.ones((positive_anchor_indices.shape[0], 1), dtype=tf.float32),
+          tf.cast(deltas, dtype=tf.float32)],
       axis = 1)
-  negative_anchor_slice = tf.stack(
+  negative_anchor_slice = tf.concat(
       [
-          negative_anchor_indices,
-          tf.ones((negative_anchor_indices.shape[0]))*-1.0,
-          tf.zeros((negative_anchor_indices.shape[0], 4))
+          tf.reshape(tf.cast(negative_anchor_indices, dtype=tf.float32), (-1, 1)),
+          tf.ones((negative_anchor_indices.shape[0], 1))*-1.0,
+          tf.zeros((negative_anchor_indices.shape[0], 4), dtype=tf.float32)
       ],
       axis = 1)
   return tf.concat([positive_anchor_slice, negative_anchor_slice, padding], axis=0)

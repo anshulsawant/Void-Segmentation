@@ -30,17 +30,13 @@ def _load_distance_data(image, mask, distance):
 
 anchors = utils.anchor_pyramid()
 
-def _load_mask_rcnn_data(image, mask, bboxes):
-  def f(x, y, z):
-    rpn_labels = utils.anchor_gt_assignment(anchors, bboxes)
-    return (
-        images.load_image(x.decode())/255.,
-        rpn_labels)
-  img, rpn_labels = \
-  tf.numpy_function(
-      f,
-      [image, mask, bboxes],
-      [tf.float32, tf.float32])
+def _load_mask_rcnn_data(image, bbs, anchors):
+  def f(i, b, a):
+    img = images.load_image(i.decode())/255.
+    boxes = images.load_bb(b.decode())
+    rpn_labels = utils.anchor_gt_assignment(tf.squeeze(a), boxes)
+    return (img, rpn_labels)
+  (img, rpn_labels) = tf.numpy_function(f, [image, bbs, anchors], [tf.float32, tf.float32])
   img.set_shape([512, 512, 1])
   return (img, rpn_labels)
 
@@ -87,14 +83,16 @@ def create_distance_holdout_dataset(dir = os.path.join(images.ROOT, 'dataset'), 
   return tf.data.Dataset.from_tensor_slices((image_paths, masks, distance)).map(_load_distance_data).batch(batch)
 
 def create_mask_rcnn_dataset(dir=os.path.join(images.ROOT, 'dataset'), batch=1):
-  image_paths, masks, bboxes, _ = images.load_image_paths(base=dir, segment = 'train')
-  train_size = len(image_paths)*4//5
+  image_paths, _, bboxes, _ = images.load_image_paths(base=dir, segment = 'train')
+  train_size = (len(image_paths)*4)//5
   print(f'Creating dataset with {len(image_paths)} images.')
   print(f'Using {train_size} images for training.')
-  ds = (tf.data.Dataset
-        .from_tensor_slices((image_paths, masks, bboxes))
-        .shuffle(buffer_size=100000)
-        .map(_load_mask_rcnn_data))
+  imgs = tf.data.Dataset.from_tensor_slices(image_paths)
+  bbs = tf.data.Dataset.from_tensor_slices(bboxes)
+  anchors = tf.data.Dataset.from_tensors([utils.anchor_pyramid()]).repeat()
+  ds = (tf.data.Dataset.zip((imgs, bbs, anchors))
+      .shuffle(buffer_size=100000)
+      .map(_load_mask_rcnn_data))
   train_ds = ds.take(train_size).batch(batch).prefetch(2)
   val_ds = ds.skip(train_size).batch(batch).prefetch(2)
   return (train_ds, val_ds)
